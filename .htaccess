@@ -1,0 +1,20 @@
+# Deny access to the database file
+<Files "*.db">
+    Require all denied
+</Files>
+
+# Deny access to sensitive directories
+<Directory "c:/Apache24/htdocs/farm_system/config">
+    Require all denied
+</Directory>
+<Directory "c:/Apache24/htdocs/farm_system/includes">
+    Require all denied
+</Directory>
+
+# Protect dotfiles (.git, .env)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes

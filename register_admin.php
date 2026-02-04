@@ -1,8 +1,7 @@
-<?php
 // c:/Apache24/htdocs/farm_system/register_admin.php
 require_once 'config/db.php';
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// error_reporting(E_ALL); // Disable for prod
+// ini_set('display_errors', 1); // Disable for prod
 
 $username = 'admin';
 $password = 'admin123';
