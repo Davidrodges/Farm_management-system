@@ -1,0 +1,16 @@
+# Database (SQLite)
+farm.db
+farm_test.db
+*.sqlite
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+tests/
