@@ -63,8 +63,10 @@ function mapRailwayVariables() {
         'MYSQLPORT'     => 'DB_PORT'
     ];
     foreach ($map as $railwayVar => $standardVar) {
-        $val = getenv($railwayVar);
-        if ($val && !getenv($standardVar)) {
+        // Check all sources
+        $val = getenv($railwayVar) ?: ($_ENV[$railwayVar] ?? ($_SERVER[$railwayVar] ?? null));
+        
+        if ($val && !(getenv($standardVar) ?: ($_ENV[$standardVar] ?? ($_SERVER[$standardVar] ?? null)))) {
             putenv("$standardVar=$val");
             $_ENV[$standardVar] = $val;
             $_SERVER[$standardVar] = $val;
@@ -73,15 +75,20 @@ function mapRailwayVariables() {
 }
 mapRailwayVariables();
 
+// Helper to get variable from any source
+function get_db_var($name) {
+    return getenv($name) ?: ($_ENV[$name] ?? ($_SERVER[$name] ?? null));
+}
+
 // Unify connection variables
-$dbHost = getenv('DB_HOST') ?: getenv('MYSQLHOST');
-$dbPort = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
-$dbName = getenv('DB_NAME') ?: getenv('MYSQLDATABASE');
-$dbUser = getenv('DB_USER') ?: getenv('MYSQLUSER');
-$dbPass = getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: getenv('MYSQLPASSWORD');
+$dbHost = get_db_var('DB_HOST') ?: get_db_var('MYSQLHOST');
+$dbPort = get_db_var('DB_PORT') ?: get_db_var('MYSQLPORT') ?: '3306';
+$dbName = get_db_var('DB_NAME') ?: get_db_var('MYSQLDATABASE');
+$dbUser = get_db_var('DB_USER') ?: get_db_var('MYSQLUSER');
+$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS') ?: get_db_var('MYSQLPASSWORD');
 
 // Alternative: Parse MYSQL_URL if available
-$mysqlUrl = getenv('MYSQL_URL');
+$mysqlUrl = get_db_var('MYSQL_URL');
 if ($mysqlUrl && ($url = parse_url($mysqlUrl))) {
     $dbHost = $url['host'] ?? $dbHost;
     $dbPort = $url['port'] ?? $dbPort;
