@@ -78,17 +78,26 @@ function mapRailwayVariables() {
 }
 mapRailwayVariables();
 
-// Helper to get variable from any source
+// Helper to get variable from any source and resolve ${VAR} references
 function get_db_var($name) {
-    return getenv($name) ?: ($_ENV[$name] ?? ($_SERVER[$name] ?? null));
+    $val = getenv($name) ?: ($_ENV[$name] ?? ($_SERVER[$name] ?? null));
+    
+    // If the value is literal "${SOMETHING}", try to resolve it
+    if ($val && preg_match('/^\$\{(.+)\}$|^\$(.+)$/', $val, $matches)) {
+        $inner_var = $matches[1] ?: $matches[2];
+        $resolved = getenv($inner_var) ?: ($_ENV[$inner_var] ?? ($_SERVER[$inner_var] ?? null));
+        if ($resolved) return $resolved;
+    }
+    
+    return $val;
 }
 
 // Unify connection variables
-$dbHost = get_db_var('DB_HOST');
-$dbPort = get_db_var('DB_PORT') ?: '3306';
-$dbName = get_db_var('DB_NAME');
-$dbUser = get_db_var('DB_USER');
-$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS');
+$dbHost = get_db_var('DB_HOST') ?: get_db_var('MYSQLHOST');
+$dbPort = get_db_var('DB_PORT') ?: get_db_var('MYSQLPORT') ?: '3306';
+$dbName = get_db_var('DB_NAME') ?: get_db_var('MYSQLDATABASE');
+$dbUser = get_db_var('DB_USER') ?: get_db_var('MYSQLUSER');
+$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS') ?: get_db_var('MYSQLPASSWORD');
 
 // Alternative: Parse MYSQL_URL if available
 $mysqlUrl = get_db_var('MYSQL_URL');
