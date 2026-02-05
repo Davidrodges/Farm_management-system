@@ -26,7 +26,9 @@ session_set_cookie_params([
 $is_localhost = (
     php_sapi_name() === 'cli' || 
     (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1'])) ||
-    (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local')
+    (isset($_SERVER['REMOTE_ADDR']) && in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1'])) ||
+    (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local') ||
+    strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false
 );
 
 // 2. Dynamic Base URL detection for portability
@@ -55,6 +57,11 @@ $db_env_port = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
 
 if ($db_env_host && $db_env_name) {
     // Railway / Production Environment
+    // Verify MySQL driver is enabled
+    if (!in_array('mysql', PDO::getAvailableDrivers())) {
+        die("Critical Error: PDO MySQL driver not found. Please enable 'extension=pdo_mysql' in your PHP configuration.");
+    }
+
     try {
         $dsn = "mysql:host=$db_env_host;port=$db_env_port;dbname=$db_env_name;charset=utf8mb4";
         $pdo = new PDO($dsn, $db_env_user, $db_env_pass);
@@ -68,6 +75,10 @@ if ($db_env_host && $db_env_name) {
     }
 } elseif (!$is_localhost) {
     // Fallback to Hardcoded InfinityFree Settings (Legacy)
+    if (!in_array('mysql', PDO::getAvailableDrivers())) {
+        die("Environment Error: MySQL PDO driver not found. <br><br><b>If you are running locally:</b> Please enable 'extension=pdo_mysql' in your php.ini file.<br><b>If you are on Railway:</b> Please ensure your environment variables (DB_HOST) are set correctly in the dashboard.");
+    }
+
     $host = "sql107.infinityfree.com";
     $dbname = "if0_41076298_farmsystem";
     $username = "if0_41076298";
@@ -84,7 +95,7 @@ if ($db_env_host && $db_env_name) {
     $dbPath = __DIR__ . '/../farm.db';
     try {
         $pdo = new PDO('sqlite:' . $dbPath);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ATTR_ERRMODE_EXCEPTION);
         $pdo->exec("PRAGMA foreign_keys = ON;");
     } catch(PDOException $e) {
         die("Local Connection failed: " . $e->getMessage());
