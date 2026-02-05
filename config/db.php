@@ -73,11 +73,9 @@ if ($db_env_host && $db_env_name) {
         $pdo = new PDO($dsn, $db_env_user, $db_env_pass);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     } catch(PDOException $e) {
-        if (getenv('APP_ENV') === 'production') {
-            die("Database connection error. Please visit your Railway dashboard to check if your MySQL service is running.");
-        } else {
-            die("Production Database Connection failed: " . $e->getMessage());
-        }
+        // Show real error message to help debug connection issues
+        die("<b>Database Connection Failed:</b> " . $e->getMessage() . "<br><br>
+             Please check your Railway Variables (Host, User, Password, Database).");
     }
 } elseif ($is_railway) {
     // We are on Railway but variables are missing
