@@ -25,14 +25,16 @@ session_set_cookie_params([
 
 $is_localhost = (
     php_sapi_name() === 'cli' || 
-    (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1'])) ||
+    (isset($_SERVER['SERVER_NAME']) && in_array(strtolower($_SERVER['SERVER_NAME']), ['localhost', '127.0.0.1', '::1'])) ||
     (isset($_SERVER['HTTP_HOST']) && (
-        strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
-        strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false ||
+        stripos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
+        stripos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false ||
         strpos($_SERVER['HTTP_HOST'], '192.168.') === 0 ||
         strpos($_SERVER['HTTP_HOST'], '10.') === 0 ||
-        strpos($_SERVER['HTTP_HOST'], '172.') === 0
+        strpos($_SERVER['HTTP_HOST'], '172.') === 0 ||
+        strpos($_SERVER['HTTP_HOST'], '169.254.') === 0
     )) ||
+    (isset($_SERVER['SERVER_ADDR']) && in_array($_SERVER['SERVER_ADDR'], ['127.0.0.1', '::1'])) ||
     (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local')
 );
 
