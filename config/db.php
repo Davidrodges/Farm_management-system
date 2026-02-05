@@ -63,13 +63,16 @@ function mapRailwayVariables() {
         'MYSQLPORT'     => 'DB_PORT'
     ];
     foreach ($map as $railwayVar => $standardVar) {
-        // Check all sources
+        // Check all sources (getenv, $_ENV, $_SERVER)
         $val = getenv($railwayVar) ?: ($_ENV[$railwayVar] ?? ($_SERVER[$railwayVar] ?? null));
         
-        if ($val && !(getenv($standardVar) ?: ($_ENV[$standardVar] ?? ($_SERVER[$standardVar] ?? null)))) {
-            putenv("$standardVar=$val");
-            $_ENV[$standardVar] = $val;
-            $_SERVER[$standardVar] = $val;
+        // If Railway var exists, make sure Standard var is set
+        if ($val) {
+            if (!(getenv($standardVar) ?: ($_ENV[$standardVar] ?? ($_SERVER[$standardVar] ?? null)))) {
+                putenv("$standardVar=$val");
+                $_ENV[$standardVar] = $val;
+                $_SERVER[$standardVar] = $val;
+            }
         }
     }
 }
@@ -81,11 +84,11 @@ function get_db_var($name) {
 }
 
 // Unify connection variables
-$dbHost = get_db_var('DB_HOST') ?: get_db_var('MYSQLHOST');
-$dbPort = get_db_var('DB_PORT') ?: get_db_var('MYSQLPORT') ?: '3306';
-$dbName = get_db_var('DB_NAME') ?: get_db_var('MYSQLDATABASE');
-$dbUser = get_db_var('DB_USER') ?: get_db_var('MYSQLUSER');
-$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS') ?: get_db_var('MYSQLPASSWORD');
+$dbHost = get_db_var('DB_HOST');
+$dbPort = get_db_var('DB_PORT') ?: '3306';
+$dbName = get_db_var('DB_NAME');
+$dbUser = get_db_var('DB_USER');
+$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS');
 
 // Alternative: Parse MYSQL_URL if available
 $mysqlUrl = get_db_var('MYSQL_URL');
@@ -99,7 +102,7 @@ if ($mysqlUrl && ($url = parse_url($mysqlUrl))) {
 
 $is_railway = (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'railway.app') !== false) || getenv('RAILWAY_ENVIRONMENT');
 
-if ($dbHost && $dbName) {
+if ($dbHost && $dbName && $dbUser) {
     // Railway / Production Environment
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
         die("Critical Error: PDO MySQL driver not found. Please ensure your composer.json is present to install drivers on Railway.");
@@ -116,12 +119,17 @@ if ($dbHost && $dbName) {
     }
 } elseif ($is_railway) {
     // On Railway but variables are missing
+    $detected_vars = [];
+    foreach (['DB_HOST', 'DB_NAME', 'DB_USER'] as $v) if (get_db_var($v)) $detected_vars[] = $v;
+    
     die("<b>Error: Missing Database Configuration on Railway.</b><br><br>
-         Please add these Variable references in your Railway Dashboard:<br>
+         Detected variables: " . (empty($detected_vars) ? "None" : implode(', ', $detected_vars)) . "<br><br>
+         <b>How to fix:</b> Go to your Railway Dashboard -> Variables and add:<br>
          <code>DB_HOST</code> = \${MYSQLHOST}<br>
          <code>DB_NAME</code> = \${MYSQLDATABASE}<br>
          <code>DB_USER</code> = \${MYSQLUSER}<br>
-         <code>DB_PASSWORD</code> = \${MYSQLPASSWORD}<br>");
+         <code>DB_PASSWORD</code> = \${MYSQLPASSWORD}<br><br>
+         <i>Important: No spaces between '$' and '{'!</i>");
 } elseif (!$is_localhost) {
     // Fallback to Hardcoded InfinityFree Settings (Legacy)
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
