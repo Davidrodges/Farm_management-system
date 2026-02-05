@@ -1,0 +1,17 @@
+{
+    "name": "davidrodges/farm-management-system",
+    "description": "Farm Management System optimized for Railway",
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-mysqli": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+}
