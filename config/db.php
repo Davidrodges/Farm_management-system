@@ -60,9 +60,10 @@ $db_env_user = getenv('DB_USER') ?: getenv('MYSQLUSER');
 $db_env_pass = getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: getenv('MYSQLPASSWORD');
 $db_env_port = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
 
+$is_railway = (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'railway.app') !== false);
+
 if ($db_env_host && $db_env_name) {
     // Railway / Production Environment
-    // Verify MySQL driver is enabled
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
         die("Critical Error: PDO MySQL driver not found. Please enable 'extension=pdo_mysql' in your PHP configuration.");
     }
@@ -73,21 +74,26 @@ if ($db_env_host && $db_env_name) {
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     } catch(PDOException $e) {
         if (getenv('APP_ENV') === 'production') {
-            die("Database connection error. Please try again later.");
+            die("Database connection error. Please visit your Railway dashboard to check if your MySQL service is running.");
         } else {
             die("Production Database Connection failed: " . $e->getMessage());
         }
     }
+} elseif ($is_railway) {
+    // We are on Railway but variables are missing
+    die("<b>Error: Missing Database Configuration on Railway.</b><br><br>
+         You are running on Railway but have not set your database environment variables yet.<br><br>
+         Please go to your <b>Railway Dashboard -> Variables</b> and add:<br>
+         - <code>DB_HOST</code> (Your MySQL host)<br>
+         - <code>DB_NAME</code> (Your database name)<br>
+         - <code>DB_USER</code> (Your database user)<br>
+         - <code>DB_PASSWORD</code> (Your database password)<br>
+         - <code>DB_PORT</code> (Usually 3306)");
 } elseif (!$is_localhost) {
     // Fallback to Hardcoded InfinityFree Settings (Legacy)
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
         $detected_host = $_SERVER['HTTP_HOST'] ?? 'Unknown';
-        $available_drivers = implode(', ', PDO::getAvailableDrivers());
-        die("Environment Error: MySQL PDO driver not found. <br><br>
-             <b>Detected Host:</b> $detected_host <br>
-             <b>Available Drivers:</b> $available_drivers <br><br>
-             <b>If you are running locally:</b> Please enable 'extension=pdo_mysql' in your php.ini file.<br>
-             <b>If you are on Railway:</b> Please ensure your environment variables (DB_HOST) are set correctly in the dashboard.");
+        die("Environment Error: MySQL PDO driver not found. Host: $detected_host");
     }
 
     $host = "sql107.infinityfree.com";
@@ -99,7 +105,7 @@ if ($db_env_host && $db_env_name) {
         $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     } catch(PDOException $e) {
-        die("InfinityFree Connection failed: " . $e->getMessage());
+        die("InfinityFree Connection failed: " . $e->getMessage() . "<br><br>Tip: If you are on Railway, ensure you have set your Environment Variables.");
     }
 } else {
     // Local Development Settings (SQLite)
