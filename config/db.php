@@ -29,10 +29,8 @@ $is_localhost = (
     (isset($_SERVER['HTTP_HOST']) && (
         stripos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
         stripos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false ||
-        strpos($_SERVER['HTTP_HOST'], '192.168.') === 0 ||
-        strpos($_SERVER['HTTP_HOST'], '10.') === 0 ||
-        strpos($_SERVER['HTTP_HOST'], '172.') === 0 ||
-        strpos($_SERVER['HTTP_HOST'], '169.254.') === 0
+        preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.|169\.254\.)/', $_SERVER['HTTP_HOST']) ||
+        strpos($_SERVER['HTTP_HOST'], '.') === false // Hostnames like "my-pc" or "desktop-abc"
     )) ||
     (isset($_SERVER['SERVER_ADDR']) && in_array($_SERVER['SERVER_ADDR'], ['127.0.0.1', '::1'])) ||
     (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local')
@@ -83,7 +81,13 @@ if ($db_env_host && $db_env_name) {
 } elseif (!$is_localhost) {
     // Fallback to Hardcoded InfinityFree Settings (Legacy)
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
-        die("Environment Error: MySQL PDO driver not found. <br><br><b>If you are running locally:</b> Please enable 'extension=pdo_mysql' in your php.ini file.<br><b>If you are on Railway:</b> Please ensure your environment variables (DB_HOST) are set correctly in the dashboard.");
+        $detected_host = $_SERVER['HTTP_HOST'] ?? 'Unknown';
+        $available_drivers = implode(', ', PDO::getAvailableDrivers());
+        die("Environment Error: MySQL PDO driver not found. <br><br>
+             <b>Detected Host:</b> $detected_host <br>
+             <b>Available Drivers:</b> $available_drivers <br><br>
+             <b>If you are running locally:</b> Please enable 'extension=pdo_mysql' in your php.ini file.<br>
+             <b>If you are on Railway:</b> Please ensure your environment variables (DB_HOST) are set correctly in the dashboard.");
     }
 
     $host = "sql107.infinityfree.com";
