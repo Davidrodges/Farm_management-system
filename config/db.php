@@ -1,7 +1,7 @@
 <?php
 // config/db.php
 
-// SSL/HTTPS Detection (Proxy-aware for Railway)
+// 1. SSL/HTTPS Detection (Proxy-aware for Railway)
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
     $_SERVER['HTTPS'] = 'on';
 }
@@ -30,7 +30,7 @@ $is_localhost = (
         stripos($_SERVER['HTTP_HOST'], 'localhost') !== false || 
         stripos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false ||
         preg_match('/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.|169\.254\.)/', $_SERVER['HTTP_HOST']) ||
-        strpos($_SERVER['HTTP_HOST'], '.') === false // Hostnames like "my-pc" or "desktop-abc"
+        strpos($_SERVER['HTTP_HOST'], '.') === false 
     )) ||
     (isset($_SERVER['SERVER_ADDR']) && in_array($_SERVER['SERVER_ADDR'], ['127.0.0.1', '::1'])) ||
     (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local')
@@ -53,45 +53,52 @@ if (isset($_SERVER['HTTP_HOST'])) {
 }
 
 // 3. Database Connection Logic
-// Try Environment Variables FIRST (Railway / Cloud)
-$db_env_host = getenv('DB_HOST') ?: getenv('MYSQLHOST');
-$db_env_name = getenv('DB_NAME') ?: getenv('MYSQLDATABASE');
-$db_env_user = getenv('DB_USER') ?: getenv('MYSQLUSER');
-$db_env_pass = getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: getenv('MYSQLPASSWORD');
-$db_env_port = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
+// Try Railway's specific environment variables first (most reliable)
+$dbHost = getenv('MYSQLHOST') ?: getenv('DB_HOST');
+$dbPort = getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306';
+$dbName = getenv('MYSQLDATABASE') ?: getenv('DB_NAME');
+$dbUser = getenv('MYSQLUSER') ?: getenv('DB_USER');
+$dbPass = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: getenv('DB_PASS');
 
-$is_railway = (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'railway.app') !== false);
+// Alternative: Parse MYSQL_URL if available
+$mysqlUrl = getenv('MYSQL_URL');
+if ($mysqlUrl && ($url = parse_url($mysqlUrl))) {
+    $dbHost = $url['host'] ?? $dbHost;
+    $dbPort = $url['port'] ?? $dbPort;
+    $dbName = ltrim($url['path'] ?? '', '/') ?: $dbName;
+    $dbUser = $url['user'] ?? $dbUser;
+    $dbPass = $url['pass'] ?? $dbPass;
+}
 
-if ($db_env_host && $db_env_name) {
+$is_railway = (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'railway.app') !== false) || getenv('RAILWAY_ENVIRONMENT');
+
+if ($dbHost && $dbName) {
     // Railway / Production Environment
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
-        die("Critical Error: PDO MySQL driver not found. Please enable 'extension=pdo_mysql' in your PHP configuration.");
+        die("Critical Error: PDO MySQL driver not found. Please ensure your composer.json is present to install drivers on Railway.");
     }
 
     try {
-        $dsn = "mysql:host=$db_env_host;port=$db_env_port;dbname=$db_env_name;charset=utf8mb4";
-        $pdo = new PDO($dsn, $db_env_user, $db_env_pass);
+        $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4";
+        $pdo = new PDO($dsn, $dbUser, $dbPass);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     } catch(PDOException $e) {
-        // Show real error message to help debug connection issues
         die("<b>Database Connection Failed:</b> " . $e->getMessage() . "<br><br>
-             Please check your Railway Variables (Host, User, Password, Database).");
+             Please check your Railway Variables (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD).");
     }
 } elseif ($is_railway) {
-    // We are on Railway but variables are missing
+    // On Railway but variables are missing
     die("<b>Error: Missing Database Configuration on Railway.</b><br><br>
-         You are running on Railway but have not set your database environment variables yet.<br><br>
-         Please go to your <b>Railway Dashboard -> Variables</b> and add:<br>
-         - <code>DB_HOST</code> (Your MySQL host)<br>
-         - <code>DB_NAME</code> (Your database name)<br>
-         - <code>DB_USER</code> (Your database user)<br>
-         - <code>DB_PASSWORD</code> (Your database password)<br>
-         - <code>DB_PORT</code> (Usually 3306)");
+         Please add these Variable references in your Railway Dashboard:<br>
+         <code>DB_HOST</code> = \${MYSQLHOST}<br>
+         <code>DB_NAME</code> = \${MYSQLDATABASE}<br>
+         <code>DB_USER</code> = \${MYSQLUSER}<br>
+         <code>DB_PASSWORD</code> = \${MYSQLPASSWORD}<br>");
 } elseif (!$is_localhost) {
     // Fallback to Hardcoded InfinityFree Settings (Legacy)
     if (!in_array('mysql', PDO::getAvailableDrivers())) {
-        $detected_host = $_SERVER['HTTP_HOST'] ?? 'Unknown';
-        die("Environment Error: MySQL PDO driver not found. Host: $detected_host");
+        die("Environment Error: MySQL PDO driver not found.");
     }
 
     $host = "sql107.infinityfree.com";
@@ -103,14 +110,14 @@ if ($db_env_host && $db_env_name) {
         $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     } catch(PDOException $e) {
-        die("InfinityFree Connection failed: " . $e->getMessage() . "<br><br>Tip: If you are on Railway, ensure you have set your Environment Variables.");
+        die("InfinityFree Connection failed: " . $e->getMessage());
     }
 } else {
     // Local Development Settings (SQLite)
     $dbPath = __DIR__ . '/../farm.db';
     try {
         $pdo = new PDO('sqlite:' . $dbPath);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ATTR_ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->exec("PRAGMA foreign_keys = ON;");
     } catch(PDOException $e) {
         die("Local Connection failed: " . $e->getMessage());
@@ -120,7 +127,6 @@ if ($db_env_host && $db_env_name) {
 // Check if tables exist, if not create them (Simple Migration System)
 function createTables($pdo) {
     $queries = [
-        // 1. Weeks Table (The core record)
         "CREATE TABLE IF NOT EXISTS weeks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_number INTEGER NOT NULL,
@@ -129,8 +135,6 @@ function createTables($pdo) {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(week_number, start_date)
         )",
-        
-        // 1. Weekly Flock Status
         "CREATE TABLE IF NOT EXISTS flock_status (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -144,13 +148,11 @@ function createTables($pdo) {
             closing_birds INTEGER,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 2. Weekly Egg Production
         "CREATE TABLE IF NOT EXISTS egg_production (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
             total_collected INTEGER,
-            crates_produced REAL, -- Can be decimal
+            crates_produced REAL,
             cracked_broken INTEGER DEFAULT 0,
             small_eggs INTEGER DEFAULT 0,
             fed_to_dogs INTEGER DEFAULT 0,
@@ -161,8 +163,6 @@ function createTables($pdo) {
             production_percent REAL,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 3. Weekly Feed Record
         "CREATE TABLE IF NOT EXISTS feed_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -176,8 +176,6 @@ function createTables($pdo) {
             avg_feed_per_bird REAL,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 4. Weekly Water Record
         "CREATE TABLE IF NOT EXISTS water_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -188,8 +186,6 @@ function createTables($pdo) {
             notes TEXT,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 5. Weekly Health Record
         "CREATE TABLE IF NOT EXISTS health_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -204,21 +200,17 @@ function createTables($pdo) {
             deaths_linked_illness INTEGER DEFAULT 0,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 6. Weekly Biosecurity
         "CREATE TABLE IF NOT EXISTS biosecurity (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
             disinfectant_used TEXT,
-            houses_cleaned INTEGER DEFAULT 0, -- 1=Yes, 0=No
+            houses_cleaned INTEGER DEFAULT 0,
             footbath_maintained INTEGER DEFAULT 0,
             rodent_control INTEGER DEFAULT 0,
             visitors_recorded TEXT,
             protective_gear_used INTEGER DEFAULT 0,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 7. Weekly Labour Record
         "CREATE TABLE IF NOT EXISTS labour_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -230,8 +222,6 @@ function createTables($pdo) {
             notes TEXT,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 8. Weekly Expenses
         "CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -248,8 +238,6 @@ function createTables($pdo) {
             total_expenses REAL,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 9. Weekly Egg Sales
         "CREATE TABLE IF NOT EXISTS egg_sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -258,7 +246,7 @@ function createTables($pdo) {
             grade3_sold REAL DEFAULT 0,
             grade4_sold REAL DEFAULT 0,
             price_per_crate REAL DEFAULT 0,
-            start_balance REAL DEFAULT 0, -- Outstanding balances from previous
+            start_balance REAL DEFAULT 0,
             total_crates_sold REAL,
             total_sales_value REAL,
             cash_received REAL,
@@ -267,8 +255,6 @@ function createTables($pdo) {
             transport_cost_sales REAL,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 10. Weekly Inventory Check
         "CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -281,8 +267,6 @@ function createTables($pdo) {
             supplies_restock TEXT,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 11. Weekly Asset & Equipment
         "CREATE TABLE IF NOT EXISTS assets_equipment (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -292,9 +276,6 @@ function createTables($pdo) {
             vehicle_condition TEXT,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 12. Weekly Performance (Calculated fields stored for history or computed on fly)
-        // We will compute these mostly on the fly, but storing snapshots is good
         "CREATE TABLE IF NOT EXISTS performance_summary (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -310,8 +291,6 @@ function createTables($pdo) {
             net_profit REAL,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 13. Weekly Manager Notes
         "CREATE TABLE IF NOT EXISTS manager_notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             week_id INTEGER NOT NULL,
@@ -322,8 +301,6 @@ function createTables($pdo) {
             action_plan TEXT,
             FOREIGN KEY(week_id) REFERENCES weeks(id) ON DELETE CASCADE
         )",
-
-        // 14. Users Table (Authentication)
         "CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
