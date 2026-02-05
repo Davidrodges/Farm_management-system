@@ -53,12 +53,32 @@ if (isset($_SERVER['HTTP_HOST'])) {
 }
 
 // 3. Database Connection Logic
-// Try Railway's specific environment variables first (most reliable)
-$dbHost = getenv('MYSQLHOST') ?: getenv('DB_HOST');
-$dbPort = getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306';
-$dbName = getenv('MYSQLDATABASE') ?: getenv('DB_NAME');
-$dbUser = getenv('MYSQLUSER') ?: getenv('DB_USER');
-$dbPass = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: getenv('DB_PASS');
+// Mapper function to unify Railway and Standard environment variables
+function mapRailwayVariables() {
+    $map = [
+        'MYSQLHOST'     => 'DB_HOST',
+        'MYSQLDATABASE' => 'DB_NAME',
+        'MYSQLUSER'     => 'DB_USER',
+        'MYSQLPASSWORD' => 'DB_PASSWORD',
+        'MYSQLPORT'     => 'DB_PORT'
+    ];
+    foreach ($map as $railwayVar => $standardVar) {
+        $val = getenv($railwayVar);
+        if ($val && !getenv($standardVar)) {
+            putenv("$standardVar=$val");
+            $_ENV[$standardVar] = $val;
+            $_SERVER[$standardVar] = $val;
+        }
+    }
+}
+mapRailwayVariables();
+
+// Unify connection variables
+$dbHost = getenv('DB_HOST') ?: getenv('MYSQLHOST');
+$dbPort = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
+$dbName = getenv('DB_NAME') ?: getenv('MYSQLDATABASE');
+$dbUser = getenv('DB_USER') ?: getenv('MYSQLUSER');
+$dbPass = getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: getenv('MYSQLPASSWORD');
 
 // Alternative: Parse MYSQL_URL if available
 $mysqlUrl = getenv('MYSQL_URL');
