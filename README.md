@@ -1,6 +1,6 @@
 # DAVINA AND RODGERS FARM MANAGEMENT SYSTEM
 
-A comprehensive Weekly Management Record system designed for **Davina and Rodgers Solutions LTD**. This web-based application tracks flock status, egg production, expenses, and performance metrics.
+A comprehensive Weekly Management Record system designed for **Davina and Rodgers Solution LTD**. This web-based application tracks flock status, egg production, expenses, and performance metrics.
 
 ## 🚀 Features
 - **Weekly Record Keeping**: 13 detailed sections (Flock, Eggs, Feed, Water, Health, Biosecurity, Labour, Expenses, Sales, Inventory, Assets, Notes).

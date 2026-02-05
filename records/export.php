@@ -1,7 +1,7 @@
 <?php
 // c:/Apache24/htdocs/farm_system/records/export.php
-require_once '../includes/auth_check.php';
-require_once '../config/db.php';
+require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../config/db.php';
 
 // Set headers to force download
 header('Content-Type: text/csv; charset=utf-8');

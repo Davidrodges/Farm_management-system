@@ -1,18 +1,94 @@
 <?php
-// c:/Apache24/htdocs/farm_system/config/db.php
+// config/db.php
 
-$dbPath = __DIR__ . '/../farm.db';
+// SSL/HTTPS Detection (Proxy-aware for Railway)
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+}
 
-try {
-    // Create (connect to) SQLite database in file
-    $pdo = new PDO('sqlite:' . $dbPath);
-    // Set errormode to exceptions
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    // Enable foreign keys
-    $pdo->exec("PRAGMA foreign_keys = ON;");
+// Session Security Configuration
+$secure_session = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
+ini_set('session.cookie_httponly', 1);
+if ($secure_session) {
+    ini_set('session.cookie_secure', 1);
+}
+ini_set('session.cookie_samesite', 'Lax');
 
-} catch(PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+// Set session cookie parameters
+session_set_cookie_params([
+    'lifetime' => 86400,
+    'path' => '/',
+    'secure' => $secure_session,
+    'httponly' => true,
+    'samesite' => 'Lax'
+]);
+
+$is_localhost = (
+    php_sapi_name() === 'cli' || 
+    (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1'])) ||
+    (isset($_ENV['APP_ENV']) && $_ENV['APP_ENV'] === 'local')
+);
+
+// 2. Dynamic Base URL detection for portability
+if (isset($_SERVER['HTTP_HOST'])) {
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    $script_name = $_SERVER['SCRIPT_NAME'];
+    $base_dir = str_replace('\\', '/', dirname($script_name));
+    
+    // Normalize base_dir: remove /records or /includes if we are in them
+    $base_dir = preg_replace('/(\/records|\/includes)$/', '', $base_dir);
+    $base_dir = rtrim($base_dir, '/');
+    
+    define('BASE_URL', $protocol . "://" . $host . $base_dir);
+} else {
+    define('BASE_URL', getenv('BASE_URL') ?: '');
+}
+
+// 3. Database Connection Logic
+// Try Environment Variables FIRST (Railway / Cloud)
+$db_env_host = getenv('DB_HOST') ?: getenv('MYSQLHOST');
+$db_env_name = getenv('DB_NAME') ?: getenv('MYSQLDATABASE');
+$db_env_user = getenv('DB_USER') ?: getenv('MYSQLUSER');
+$db_env_pass = getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: getenv('MYSQLPASSWORD');
+$db_env_port = getenv('DB_PORT') ?: getenv('MYSQLPORT') ?: '3306';
+
+if ($db_env_host && $db_env_name) {
+    // Railway / Production Environment
+    try {
+        $dsn = "mysql:host=$db_env_host;port=$db_env_port;dbname=$db_env_name;charset=utf8mb4";
+        $pdo = new PDO($dsn, $db_env_user, $db_env_pass);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    } catch(PDOException $e) {
+        if (getenv('APP_ENV') === 'production') {
+            die("Database connection error. Please try again later.");
+        } else {
+            die("Production Database Connection failed: " . $e->getMessage());
+        }
+    }
+} elseif (!$is_localhost) {
+    // Fallback to Hardcoded InfinityFree Settings (Legacy)
+    $host = "sql107.infinityfree.com";
+    $dbname = "if0_41076298_farmsystem";
+    $username = "if0_41076298";
+    $password = "1234";
+
+    try {
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    } catch(PDOException $e) {
+        die("InfinityFree Connection failed: " . $e->getMessage());
+    }
+} else {
+    // Local Development Settings (SQLite)
+    $dbPath = __DIR__ . '/../farm.db';
+    try {
+        $pdo = new PDO('sqlite:' . $dbPath);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec("PRAGMA foreign_keys = ON;");
+    } catch(PDOException $e) {
+        die("Local Connection failed: " . $e->getMessage());
+    }
 }
 
 // Check if tables exist, if not create them (Simple Migration System)
@@ -238,5 +314,7 @@ function createTables($pdo) {
     }
 }
 
-// Auto-run schema check
-createTables($pdo);
+// Auto-run schema check ONLY on Localhost (SQLite)
+if ($is_localhost) {
+    createTables($pdo);
+}

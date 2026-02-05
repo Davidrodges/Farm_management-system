@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("INSERT INTO users (username, email, password) VALUES (?, ?, ?)");
             if ($stmt->execute([$username, $email, $hash])) {
-                $success = "Account created! You can now <a href='login.php'>Login</a>";
+                $success = "Account created! You can now <a href='" . BASE_URL . "/login.php'>Login</a>";
             } else {
                 $error = "Error creating account.";
             }
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
         
         <p style="text-align: center; margin-top: 1rem;">
-            Already have an account? <a href="login.php" style="color: var(--earth-brown);">Login</a>
+            Already have an account? <a href="<?php echo BASE_URL; ?>/login.php" style="color: var(--earth-brown);">Login</a>
         </p>
     </div>
 </body>

@@ -1,5 +1,6 @@
 <?php
 // c:/Apache24/htdocs/farm_system/records/create.php
+require_once '../config/db.php';
 require_once '../includes/auth_check.php';
 include '../includes/header.php';
 ?>

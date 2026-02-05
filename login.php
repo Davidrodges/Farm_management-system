@@ -10,7 +10,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Davina and Rodgers Farm System</title>
+    <title>Login - Davina and Rodgers Solution LTD</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <style>
         body {
@@ -38,8 +38,8 @@ if (isset($_SESSION['user_id'])) {
 <body>
     <div class="login-card">
         <div class="brand-logo">
-            <h2>Farm System Login</h2>
-            <p>Davina and Rodgers Solutions LTD</p>
+            <h2>Davina and Rodgers Solution LTD</h2>
+            <p>Farm Management System Login</p>
         </div>
         
         <?php if(isset($_GET['error'])): ?>

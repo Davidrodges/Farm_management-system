@@ -1,7 +1,7 @@
 <?php
 // c:/Apache24/htdocs/farm_system/records/save.php
-require_once '../includes/auth_check.php';
-require_once '../config/db.php';
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/auth_check.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     die('Invalid request');
@@ -79,8 +79,8 @@ try {
         txt('water_source'),
         txt('treatments_given'),
         val('cost_treatments'),
-        txt('repairs_done'), // field name mistmatch in partial? check Partial 4: name="water_repairs_notes"
-        txt('water_repairs_notes')
+        txt('water_repairs_notes'), // mapping explicitly to 'repairs_done' column
+        null // 'notes' column remains empty for now
     ]);
 
     // 6. Health
@@ -249,7 +249,7 @@ try {
     ]);
 
     $pdo->commit();
-    header("Location: index.php?status=created");
+    header("Location: ../index.php?status=created");
     exit;
 
 } catch (Exception $e) {

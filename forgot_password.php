@@ -22,17 +22,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$token, $expiry, $user['id']]);
 
         // Email logic
-        $resetLink = "http://localhost/farm_system/reset_password.php?token=" . $token;
+        $resetLink = BASE_URL . "/reset_password.php?token=" . $token;
         $subject = "Password Reset Request";
         $body = "Click this link to reset your password: " . $resetLink;
+        // Check if we are on localhost (using the $is_localhost from db.php)
         $headers = "From: no-reply@farmsystem.local";
 
-        // Try sending email, if fail (common on localhost without SMTP), show link
-        if (@mail($email, $subject, $body, $headers)) {
+        $mailSent = false;
+        if (!$is_localhost) {
+            $mailSent = @mail($email, $subject, $body, $headers);
+        }
+
+        if ($mailSent) {
             $message = "<span style='color:green'>Reset link sent to your email. check spam folder.</span>";
         } else {
-            // FALLBACK FOR DEMO / LOCALHOST
-            $message = "<span style='color:orange'>Simulated Email (Localhost): <a href='$resetLink'>Click here to Reset Password</a></span>";
+            // FALLBACK FOR DEMO / LOCALHOST - Shortened for better layout
+            $message = "<span style='color:orange'><strong>Simulated Email (Dev):</strong><br><a href='$resetLink' style='word-break: break-all; font-weight: bold;'>Click here to Reset Password</a></span>";
         }
     } else {
         $message = "<span style='color:red'>Email not found.</span>";

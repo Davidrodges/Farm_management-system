@@ -1,20 +1,24 @@
-# Deny access to the database file
-<Files "*.db">
-    Require all denied
-</Files>
+# Railway-compatible .htaccess
+RewriteEngine On
 
-# Deny access to sensitive directories
-<Directory "c:/Apache24/htdocs/farm_system/config">
-    Require all denied
-</Directory>
-<Directory "c:/Apache24/htdocs/farm_system/includes">
-    Require all denied
-</Directory>
-
-# Protect dotfiles (.git, .env)
-<FilesMatch "^\.">
+# Protect sensitive files and patterns
+<FilesMatch "^\.|\.db$|config/|includes/">
     Require all denied
 </FilesMatch>
 
 # Prevent directory listing
 Options -Indexes
+
+# Handle Authorization Header
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Redirect Trailing Slashes If Not A Folder...
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} (.+)/$
+RewriteRule ^ %1 [L,R=301]
+
+# Handle Front Controller...
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L]

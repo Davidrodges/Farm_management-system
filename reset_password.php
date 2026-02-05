@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $validToken) {
         // Update password and clear token
         $stmt = $pdo->prepare("UPDATE users SET password = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?");
         $stmt->execute([$hash, $user['id']]);
-        $message = "<span style='color:green'>Password updated! <a href='login.php'>Login here</a></span>";
+        $message = "<span style='color:green'>Password updated! <a href='" . BASE_URL . "/login.php'>Login here</a></span>";
         $validToken = false; // Hide form
     } else {
         $message = "<span style='color:red'>Passwords do not match.</span>";
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $validToken) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set New Password</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/style.css">
     <style>
         body {
             display: flex;
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $validToken) {
         <?php endif; ?>
         
         <p style="text-align: center; margin-top: 1rem;">
-            <a href="login.php" style="color: var(--earth-brown);">Back to Login</a>
+            <a href="<?php echo BASE_URL; ?>/login.php" style="color: var(--earth-brown);">Back to Login</a>
         </p>
     </div>
 </body>

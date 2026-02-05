@@ -5,6 +5,6 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: /farm_system/login.php");
+    header("Location: " . BASE_URL . "/login.php");
     exit;
 }
