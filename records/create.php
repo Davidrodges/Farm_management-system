@@ -31,6 +31,20 @@ include '../includes/header.php';
         </div>
 
         <?php 
+        // Initialize empty arrays for partials to avoid undefined variable errors
+        $flock = [];
+        $eggs = [];
+        $feed = [];
+        $water = [];
+        $health = [];
+        $bio = [];
+        $labour = [];
+        $expenses = [];
+        $sales = [];
+        $inventory = [];
+        $assets = [];
+        $notes = [];
+
         // We will include the sections here to keep this file manageable
         // Section 1: Flock
         include 'partials/01_flock.php';

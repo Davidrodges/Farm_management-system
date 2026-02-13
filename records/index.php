@@ -25,6 +25,9 @@ $weeks = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php if (isset($_GET['status']) && $_GET['status'] == 'created'): ?>
         <p style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin: 10px 0;">Record saved successfully!</p>
     <?php endif; ?>
+    <?php if (isset($_GET['status']) && $_GET['status'] == 'updated'): ?>
+        <p style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin: 10px 0;">Record updated successfully!</p>
+    <?php endif; ?>
 
     <table>
         <thead>
@@ -50,7 +53,8 @@ $weeks = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php echo number_format($week['net_profit'], 2); ?>
                 </td>
                 <td>
-                    <a href="view.php?id=<?php echo $week['id']; ?>" style="color: var(--primary-green); font-weight: bold;">View Full</a>
+                    <a href="view.php?id=<?php echo $week['id']; ?>" style="color: var(--primary-green); font-weight: bold; margin-right: 10px;">View</a>
+                    <a href="edit.php?id=<?php echo $week['id']; ?>" style="color: #e67e22; font-weight: bold;">Edit</a>
                 </td>
             </tr>
             <?php endforeach; ?>

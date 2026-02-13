@@ -5,19 +5,19 @@
         <div class="dashboard-grid">
             <div class="form-group">
                 <label>Equipment Needing Repair</label>
-                <input type="text" name="repair_needed" placeholder="List items...">
+                <input type="text" name="repair_needed" value="<?php echo isset($assets['repair_needed']) ? $assets['repair_needed'] : ''; ?>" placeholder="List items...">
             </div>
             <div class="form-group">
                 <label>Repairs Done This Week</label>
-                <input type="text" name="repairs_done" placeholder="Description...">
+                <input type="text" name="repairs_done" value="<?php echo isset($assets['repairs_done']) ? $assets['repairs_done'] : ''; ?>" placeholder="Description...">
             </div>
             <div class="form-group">
                 <label>Fuel Used (Gen/Pump)</label>
-                <input type="number" step="0.1" name="fuel_used_genset" placeholder="Liters">
+                <input type="number" step="0.1" name="fuel_used_genset" value="<?php echo isset($assets['fuel_used_genset']) ? $assets['fuel_used_genset'] : ''; ?>" placeholder="Liters">
             </div>
             <div class="form-group">
                 <label>Vehicle Usage & Condition</label>
-                <input type="text" name="vehicle_condition" placeholder="Notes...">
+                <input type="text" name="vehicle_condition" value="<?php echo isset($assets['vehicle_condition']) ? $assets['vehicle_condition'] : ''; ?>" placeholder="Notes...">
             </div>
         </div>
     </div>

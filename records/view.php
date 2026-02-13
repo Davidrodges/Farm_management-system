@@ -47,6 +47,7 @@ $perf = getRow($pdo, 'performance_summary', $id);
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;" class="no-print">
         <h2>Week <?php echo $week['week_number']; ?> Record (<?php echo $week['start_date']; ?> to <?php echo $week['end_date']; ?>)</h2>
         <div>
+            <a href="edit.php?id=<?php echo $id; ?>" class="btn-primary" style="background: #e67e22; text-decoration: none; margin-right: 10px;">✏️ Edit Record</a>
             <button onclick="window.print()" class="btn-primary" style="background: var(--dark-green); margin-right: 10px;">🖨️ Print Report</button>
             <a href="index.php" class="btn-primary" style="background: #95a5a6; text-decoration: none;">&larr; Back to List</a>
         </div>
