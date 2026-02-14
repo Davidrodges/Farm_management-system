@@ -139,23 +139,6 @@ if ($dbHost && $dbName && $dbUser) {
          <code>DB_USER</code> = \${MYSQLUSER}<br>
          <code>DB_PASSWORD</code> = \${MYSQLPASSWORD}<br><br>
          <i>Important: No spaces between '$' and '{'!</i>");
-} elseif (!$is_localhost) {
-    // Fallback to Hardcoded InfinityFree Settings (Legacy)
-    if (!in_array('mysql', PDO::getAvailableDrivers())) {
-        die("Environment Error: MySQL PDO driver not found.");
-    }
-
-    $host = "sql107.infinityfree.com";
-    $dbname = "if0_41076298_farmsystem";
-    $username = "if0_41076298";
-    $password = "1234";
-
-    try {
-        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    } catch(PDOException $e) {
-        die("InfinityFree Connection failed: " . $e->getMessage());
-    }
 } else {
     // Local Development Settings (SQLite)
     $dbPath = __DIR__ . '/../farm.db';
