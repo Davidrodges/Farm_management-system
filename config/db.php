@@ -53,102 +53,82 @@ if (isset($_SERVER['HTTP_HOST'])) {
 }
 
 // 3. Database Connection Logic
-// Mapper function to unify Railway and Standard environment variables
-function mapRailwayVariables() {
-    $map = [
-        'MYSQLHOST'     => 'DB_HOST',
-        'MYSQLDATABASE' => 'DB_NAME',
-        'MYSQLUSER'     => 'DB_USER',
-        'MYSQLPASSWORD' => 'DB_PASSWORD',
-        'MYSQLPORT'     => 'DB_PORT'
-    ];
-    foreach ($map as $railwayVar => $standardVar) {
-        // Check all sources (getenv, $_ENV, $_SERVER)
-        $val = getenv($railwayVar) ?: ($_ENV[$railwayVar] ?? ($_SERVER[$railwayVar] ?? null));
-        
-        // If Railway var exists, make sure Standard var is set
-        if ($val) {
-            if (!(getenv($standardVar) ?: ($_ENV[$standardVar] ?? ($_SERVER[$standardVar] ?? null)))) {
-                putenv("$standardVar=$val");
-                $_ENV[$standardVar] = $val;
-                $_SERVER[$standardVar] = $val;
-            }
+
+// Helper function to get environment variables from any source
+// Priority: getenv() -> $_ENV -> $_SERVER
+function get_env_var($key, $default = null) {
+    $val = getenv($key);
+    if ($val === false || $val === null) {
+        if (isset($_ENV[$key])) {
+            $val = $_ENV[$key];
+        } elseif (isset($_SERVER[$key])) {
+            $val = $_SERVER[$key];
         }
     }
-}
-mapRailwayVariables();
-
-// Helper to get variable from any source and resolve ${VAR} references
-function get_db_var($name) {
-    $val = getenv($name) ?: ($_ENV[$name] ?? ($_SERVER[$name] ?? null));
     
-    // If the value is literal "${SOMETHING}", try to resolve it
-    if ($val && preg_match('/^\$\{(.+)\}$|^\$(.+)$/', $val, $matches)) {
-        $inner_var = $matches[1] ?: $matches[2];
-        $resolved = getenv($inner_var) ?: ($_ENV[$inner_var] ?? ($_SERVER[$inner_var] ?? null));
-        if ($resolved) return $resolved;
-    }
-    
-    return $val;
-}
-
-// Unify connection variables
-$dbHost = get_db_var('DB_HOST') ?: get_db_var('MYSQLHOST');
-$dbPort = get_db_var('DB_PORT') ?: get_db_var('MYSQLPORT') ?: '3306';
-$dbName = get_db_var('DB_NAME') ?: get_db_var('MYSQLDATABASE');
-$dbUser = get_db_var('DB_USER') ?: get_db_var('MYSQLUSER');
-$dbPass = get_db_var('DB_PASSWORD') ?: get_db_var('DB_PASS') ?: get_db_var('MYSQLPASSWORD');
-
-// Alternative: Parse MYSQL_URL if available
-$mysqlUrl = get_db_var('MYSQL_URL');
-if ($mysqlUrl && ($url = parse_url($mysqlUrl))) {
-    $dbHost = $url['host'] ?? $dbHost;
-    $dbPort = $url['port'] ?? $dbPort;
-    $dbName = ltrim($url['path'] ?? '', '/') ?: $dbName;
-    $dbUser = $url['user'] ?? $dbUser;
-    $dbPass = $url['pass'] ?? $dbPass;
-}
-
-$is_railway = (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'railway.app') !== false) || getenv('RAILWAY_ENVIRONMENT');
-
-if ($dbHost && $dbName && $dbUser) {
-    // Railway / Production Environment
-    if (!in_array('mysql', PDO::getAvailableDrivers())) {
-        die("Critical Error: PDO MySQL driver not found. Please ensure your composer.json is present to install drivers on Railway.");
+    // Resolve ${VAR} references (Railway specific handling)
+    if ($val && is_string($val) && preg_match('/^\$\{(.+)\}$/', $val, $matches)) {
+        return get_env_var($matches[1], $default);
     }
 
-    try {
+    return ($val !== false && $val !== null) ? $val : $default;
+}
+
+// Explicit mapping for Railway variables
+$dbHost = get_env_var('DB_HOST', get_env_var('MYSQLHOST'));
+$dbName = get_env_var('DB_NAME', get_env_var('MYSQLDATABASE'));
+$dbUser = get_env_var('DB_USER', get_env_var('MYSQLUSER'));
+$dbPass = get_env_var('DB_PASSWORD', get_env_var('MYSQLPASSWORD'));
+$dbPort = get_env_var('DB_PORT', get_env_var('MYSQLPORT', 3306));
+
+// Determine environment
+$is_railway = (get_env_var('RAILWAY_ENVIRONMENT') || get_env_var('MYSQLHOST') || strpos($_SERVER['HTTP_HOST'] ?? '', 'railway.app') !== false);
+
+// Connection Logic
+try {
+    if ($dbHost) {
+        // MySQL / MariaDB Connection (Railway or Local MySQL)
+        if (!in_array('mysql', PDO::getAvailableDrivers())) {
+             throw new Exception("PDO MySQL driver is missing. Please ensure 'ext-pdo_mysql' is installed/enabled.");
+        }
+
         $dsn = "mysql:host=$dbHost;port=$dbPort;dbname=$dbName;charset=utf8mb4";
         $pdo = new PDO($dsn, $dbUser, $dbPass);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    } catch(PDOException $e) {
-        die("<b>Database Connection Failed:</b> " . $e->getMessage() . "<br><br>
-             Please check your Railway Variables (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD).");
-    }
-} elseif ($is_railway) {
-    // On Railway but variables are missing
-    $detected_vars = [];
-    foreach (['DB_HOST', 'DB_NAME', 'DB_USER'] as $v) if (get_db_var($v)) $detected_vars[] = $v;
-    
-    die("<b>Error: Missing Database Configuration on Railway.</b><br><br>
-         Detected variables: " . (empty($detected_vars) ? "None" : implode(', ', $detected_vars)) . "<br><br>
-         <b>How to fix:</b> Go to your Railway Dashboard -> Variables and add:<br>
-         <code>DB_HOST</code> = \${MYSQLHOST}<br>
-         <code>DB_NAME</code> = \${MYSQLDATABASE}<br>
-         <code>DB_USER</code> = \${MYSQLUSER}<br>
-         <code>DB_PASSWORD</code> = \${MYSQLPASSWORD}<br><br>
-         <i>Important: No spaces between '$' and '{'!</i>");
-} else {
-    // Local Development Settings (SQLite)
-    $dbPath = __DIR__ . '/../farm.db';
-    try {
+
+    } else {
+        // Fallback to Local SQLite
+        $dbPath = __DIR__ . '/../farm.db';
         $pdo = new PDO('sqlite:' . $dbPath);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         $pdo->exec("PRAGMA foreign_keys = ON;");
-    } catch(PDOException $e) {
-        die("Local Connection failed: " . $e->getMessage());
     }
+
+} catch (PDOException $e) {
+    // Hide password in error message
+    $safeMsg = str_replace([$dbPass, 'pass='], ['***', 'pass=***'], $e->getMessage());
+    
+    // Display a friendly error page
+    die("
+        <div style='font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; background: #fff9f9;'>
+            <h2 style='color: #d32f2f;'>Database Connection Failed</h2>
+            <p>Could not connect to the database. Please check your configuration.</p>
+            <p><strong>Error:</strong> " . htmlspecialchars($safeMsg) . "</p>
+            " . ($is_railway ? "
+            <hr>
+            <h3>Railway Debugging Tips:</h3>
+            <ul>
+                <li>Ensure <code>MYSQLHOST</code>, <code>MYSQLDATABASE</code>, etc. are set in Variables.</li>
+                <li>If using 'Reference Variables' (e.g. \${MYSQLHOST}), ensure they are resolving.</li>
+                <li>Check <a href='" . (defined('BASE_URL') ? BASE_URL : '') . "/test_db_detailed.php'>test_db_detailed.php</a> for more info.</li>
+            </ul>
+            " : "") . "
+        </div>
+    ");
+} catch (Exception $e) {
+    die("Configuration Error: " . $e->getMessage());
 }
 
 // Check if tables exist, if not create them (Simple Migration System)
